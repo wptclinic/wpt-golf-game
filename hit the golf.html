@@ -1,0 +1,739 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เกมตีกอล์ฟผ่านกล้อง</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #6fbf59;
+      color: #133013;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #gameWrap {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #video {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      width: min(16vw, 190px);
+      height: auto;
+      border: 4px solid rgba(255,255,255,.92);
+      border-radius: 18px;
+      transform: scaleX(-1);
+      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+      z-index: 4;
+      background: #111;
+    }
+    .hud {
+      position: absolute;
+      left: 18px;
+      top: 14px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      max-width: calc(100vw - 36px);
+    }
+    .pill {
+      background: rgba(255,255,255,.9);
+      border: 3px solid rgba(20,80,20,.18);
+      border-radius: 999px;
+      padding: 11px 18px;
+      font-size: clamp(20px, 2vw, 34px);
+      font-weight: 900;
+      box-shadow: 0 8px 20px rgba(0,0,0,.15);
+      line-height: 1;
+    }
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 12px 20px;
+      min-height: 52px;
+      font-size: clamp(18px, 1.5vw, 26px);
+      font-weight: 900;
+      cursor: pointer;
+      color: white;
+      background: #1f7a32;
+      box-shadow: 0 8px 18px rgba(0,0,0,.22);
+    }
+    .btn.stop { background: #c33; }
+    .btn.restart { background: #2369d8; }
+    .btn:active { transform: translateY(2px); }
+    select {
+      border: none;
+      border-radius: 999px;
+      padding: 12px 16px;
+      min-height: 52px;
+      font-size: clamp(17px, 1.2vw, 23px);
+      font-weight: 900;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 8px 18px rgba(0,0,0,.14);
+      max-width: 280px;
+    }
+    #centerMessage {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+    .messageBox {
+      max-width: 900px;
+      margin: 24px;
+      padding: 28px 34px;
+      border-radius: 32px;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 16px 55px rgba(0,0,0,.24);
+      text-align: center;
+      border: 5px solid rgba(47,120,38,.2);
+    }
+    .messageBox h1 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 5vw, 72px);
+      color: #165d22;
+    }
+    .messageBox p {
+      margin: 8px 0;
+      font-size: clamp(20px, 2.3vw, 38px);
+      font-weight: 800;
+    }
+    #handCursor {
+      position: absolute;
+      width: 88px;
+      height: 88px;
+      margin-left: -44px;
+      margin-top: -44px;
+      border-radius: 50%;
+      z-index: 7;
+      pointer-events: none;
+      display: none;
+      background: radial-gradient(circle, rgba(255,255,255,.95) 0 24%, rgba(255,214,77,.95) 25% 58%, rgba(255,140,0,.9) 59% 100%);
+      border: 6px solid rgba(120,70,0,.7);
+      box-shadow: 0 0 0 10px rgba(255,255,255,.28), 0 12px 25px rgba(0,0,0,.28);
+    }
+    #handCursor.hit {
+      transform: scale(.82);
+      background: radial-gradient(circle, rgba(255,255,255,.95) 0 22%, rgba(80,220,120,.95) 23% 60%, rgba(0,140,40,.9) 61% 100%);
+    }
+    .hint {
+      position: absolute;
+      right: 18px;
+      top: 16px;
+      z-index: 5;
+      background: rgba(255,255,255,.85);
+      border-radius: 20px;
+      padding: 10px 14px;
+      font-weight: 900;
+      font-size: clamp(14px, 1.1vw, 19px);
+      max-width: min(36vw, 420px);
+      box-shadow: 0 8px 18px rgba(0,0,0,.14);
+    }
+
+    #clinicBrand {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,.88);
+      border: 3px solid rgba(20,80,20,.15);
+      border-radius: 22px;
+      padding: 10px 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.18);
+      pointer-events: none;
+      max-width: min(48vw, 560px);
+    }
+
+    #clinicLogo {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      border-radius: 14px;
+      background: white;
+      flex: 0 0 auto;
+    }
+
+    #clinicText {
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    #clinicText .th {
+      font-size: clamp(18px, 1.5vw, 28px);
+      font-weight: 900;
+      color: #0f5a67;
+    }
+
+    #clinicText .en {
+      font-size: clamp(11px, 0.95vw, 16px);
+      font-weight: 700;
+      color: #5b6b6f;
+      margin-top: 4px;
+    }
+    @media (max-width: 900px) {
+      #video { width: 145px; }
+      .hint { display: none; }
+      .hud { gap: 8px; }
+      .pill, .btn, select { padding: 9px 12px; min-height: 44px; }
+      select { max-width: 190px; }
+      .messageBox { padding: 22px 24px; }
+      #clinicBrand {
+        left: 12px;
+        bottom: 12px;
+        padding: 8px 10px;
+        gap: 8px;
+        border-radius: 18px;
+        max-width: 58vw;
+      }
+      #clinicLogo {
+        width: 52px;
+        height: 52px;
+      }
+      #clinicText .th {
+        font-size: 14px;
+      }
+      #clinicText .en {
+        font-size: 9px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <canvas id="gameCanvas"></canvas>
+    <video id="video" playsinline muted></video>
+    <div id="handCursor"></div>
+
+    <div id="clinicBrand">
+      <img src="cliniclogo.jpg" alt="โลโก้วิริยพงศ์คลินิกกายภาพบำบัด" id="clinicLogo" />
+      <div id="clinicText">
+        <div class="th">วิริยพงศ์คลินิกกายภาพบำบัด</div>
+        <div class="en">WIRIYAPHONG PHYSICAL THERAPY CLINIC</div>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="pill">คะแนน: <span id="score">0</span></div>
+      <div class="pill">เวลา: <span id="time">60</span></div>
+      <button class="btn" id="startBtn">เริ่ม</button>
+      <button class="btn stop" id="pauseBtn">หยุด</button>
+      <button class="btn restart" id="restartBtn">เริ่มใหม่</button>
+      <select id="difficulty">
+        <option value="easy">ง่าย: แถวละ 3</option>
+        <option value="medium" selected>ปานกลาง: แถวละ 4</option>
+        <option value="hard">ยาก: แถวละ 5</option>
+      </select>
+      <select id="mode">
+        <option value="index" selected>ตีด้วยปลายนิ้วชี้</option>
+        <option value="palm">ตีด้วยกลางฝ่ามือ</option>
+      </select>
+      <select id="soundMode">
+        <option value="on" selected>เปิดเสียง</option>
+        <option value="off">ปิดเสียง</option>
+      </select>
+    </div>
+
+    <div class="hint">ยกมือให้กล้องเห็น แล้วใช้มือแตะ/ตีลูกกอล์ฟบนจอ</div>
+
+    <div id="centerMessage">
+      <div class="messageBox">
+        <h1>เกมตีกอล์ฟ ⛳</h1>
+        <p>กด “เริ่ม” แล้วใช้มือตีลูกกอล์ฟผ่านกล้อง</p>
+        <p style="font-size:clamp(16px,1.7vw,26px); color:#346b34;">เหมาะสำหรับฝึกการเอื้อมแขน การควบคุมทิศทาง และความเร็วในการตอบสนอง</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('video');
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const difficultyEl = document.getElementById('difficulty');
+    const modeEl = document.getElementById('mode');
+    const soundModeEl = document.getElementById('soundMode');
+    const centerMessage = document.getElementById('centerMessage');
+    const handCursor = document.getElementById('handCursor');
+
+    let W = 0, H = 0;
+    let score = 0;
+    let timeLeft = 60;
+    let gameRunning = false;
+    let gamePaused = false;
+    let lastTick = 0;
+    let timerAcc = 0;
+    let ballTimer = 0;
+    let hitCooldown = 0;
+    let holes = [];
+    let balls = [];
+    let particles = [];
+    let cameraStarted = false;
+    let cameraReady = false;
+    let pendingStart = false;
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    let hand = { x: -999, y: -999, visible: false, vx: 0, vy: 0, lastX: -999, lastY: -999 };
+
+    const settings = {
+      easy:   { ballSize: 92, showTime: 1550, spawnEvery: 980, holes: 6,  cols: 3, hitRadius: 72 },
+      medium: { ballSize: 78, showTime: 1180, spawnEvery: 760, holes: 8,  cols: 4, hitRadius: 62 },
+      hard:   { ballSize: 66, showTime: 900,  spawnEvery: 580, holes: 10, cols: 5, hitRadius: 55 }
+    };
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      buildHoles();
+    }
+    window.addEventListener('resize', resize);
+
+    function getSetting() {
+      return settings[difficultyEl.value] || settings.medium;
+    }
+
+    function buildHoles() {
+      const s = getSetting();
+      holes = [];
+      const topGap = Math.max(135, H * 0.19);
+      const bottomGap = Math.max(120, H * 0.14);
+      const cols = s.cols;
+      const rows = Math.ceil(s.holes / cols);
+      const usableW = W * 0.84;
+      const usableH = H - topGap - bottomGap;
+      const startX = (W - usableW) / 2;
+      const cameraSafeW = W * 0.18;
+      const cameraSafeH = H * 0.24;
+
+      let count = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (count >= s.holes) return;
+          let x = startX + (c + 0.5) * (usableW / cols);
+          let y = topGap + (r + 0.5) * (usableH / rows);
+
+          if (x > W - cameraSafeW && y > H - cameraSafeH) {
+            x -= cameraSafeW * 0.9;
+          }
+
+          holes.push({ x, y });
+          count++;
+        }
+      }
+    }
+
+    function resetGame() {
+      score = 0;
+      timeLeft = 60;
+      timerAcc = 0;
+      ballTimer = 0;
+      hitCooldown = 0;
+      balls = [];
+      particles = [];
+      scoreEl.textContent = score;
+      timeEl.textContent = timeLeft;
+      buildHoles();
+    }
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playHitSound() {
+      if (!soundEnabled || !audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(650, now);
+      osc.frequency.exponentialRampToValueAtTime(240, now + 0.11);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.28, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.13);
+
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(820, now + 0.04);
+      osc2.frequency.exponentialRampToValueAtTime(1180, now + 0.16);
+      gain2.gain.setValueAtTime(0.0001, now + 0.04);
+      gain2.gain.exponentialRampToValueAtTime(0.12, now + 0.06);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start(now + 0.04);
+      osc2.stop(now + 0.2);
+    }
+
+    async function startCamera() {
+      if (cameraStarted) return;
+      const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+      hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.65, minTrackingConfidence: 0.6 });
+
+      hands.onResults((results) => {
+        if (!cameraReady) {
+          cameraReady = true;
+          if (pendingStart) beginGameAfterCameraReady();
+        }
+        if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+          hand.visible = false;
+          handCursor.style.display = 'none';
+          return;
+        }
+        const lm = results.multiHandLandmarks[0];
+        const mode = modeEl.value;
+        let px, py;
+        if (mode === 'palm') {
+          const ids = [0, 5, 9, 13, 17];
+          px = ids.reduce((sum, id) => sum + lm[id].x, 0) / ids.length;
+          py = ids.reduce((sum, id) => sum + lm[id].y, 0) / ids.length;
+        } else {
+          px = lm[8].x;
+          py = lm[8].y;
+        }
+        const x = (1 - px) * W;
+        const y = py * H;
+        hand.vx = x - hand.lastX;
+        hand.vy = y - hand.lastY;
+        hand.lastX = hand.x = x;
+        hand.lastY = hand.y = y;
+        hand.visible = true;
+        handCursor.style.display = 'block';
+        handCursor.style.left = `${x}px`;
+        handCursor.style.top = `${y}px`;
+      });
+
+      const camera = new Camera(video, {
+        onFrame: async () => { await hands.send({ image: video }); },
+        width: 640,
+        height: 480
+      });
+      await camera.start();
+      cameraStarted = true;
+    }
+
+    function startGame() {
+      initAudio();
+      resetGame();
+      centerMessage.style.display = 'grid';
+      centerMessage.innerHTML = `<div class="messageBox"><h1>กำลังเปิดกล้อง...</h1><p>กรุณาอนุญาตใช้กล้องเว็บแคม</p><p style="font-size:clamp(16px,1.7vw,26px); color:#346b34;">เวลาจะเริ่มนับหลังจากกล้องเปิดสำเร็จ</p></div>`;
+      pendingStart = true;
+      startCamera().then(() => { if (cameraReady) beginGameAfterCameraReady(); }).catch(() => {
+        pendingStart = false;
+        centerMessage.style.display = 'grid';
+        centerMessage.innerHTML = `<div class="messageBox"><h1>เปิดกล้องไม่ได้</h1><p>กรุณาอนุญาตการใช้กล้อง หรือเปิดผ่าน Chrome/Edge</p></div>`;
+      });
+    }
+
+    function beginGameAfterCameraReady() {
+      if (!pendingStart) return;
+      pendingStart = false;
+      centerMessage.style.display = 'none';
+      gameRunning = true;
+      gamePaused = false;
+      pauseBtn.textContent = 'หยุด';
+      lastTick = performance.now();
+    }
+
+    function pauseGame() {
+      if (!gameRunning) return;
+      gamePaused = !gamePaused;
+      pauseBtn.textContent = gamePaused ? 'เล่นต่อ' : 'หยุด';
+      if (!gamePaused) lastTick = performance.now();
+    }
+
+    function endGame() {
+      gameRunning = false;
+      gamePaused = false;
+      pauseBtn.textContent = 'หยุด';
+      centerMessage.style.display = 'grid';
+      centerMessage.innerHTML = `<div class="messageBox"><h1>หมดเวลา!</h1><p>คะแนนรวม: ${score}</p><p style="font-size:clamp(18px,2vw,30px); color:#346b34;">กด “เริ่มใหม่” เพื่อเล่นอีกครั้ง</p></div>`;
+    }
+
+    function spawnBall() {
+      const s = getSetting();
+      const available = holes.filter(h => !balls.some(b => b.hole === h && !b.hit));
+      if (available.length === 0) return;
+      const hole = available[Math.floor(Math.random() * available.length)];
+      balls.push({ hole, age: 0, life: s.showTime, size: s.ballSize, hit: false, pop: 0 });
+    }
+
+    function addParticles(x, y) {
+      const emojis = ['⛳', '⭐', '✨', '👏'];
+      for (let i = 0; i < 12; i++) {
+        particles.push({ x, y, vx: (Math.random() - 0.5) * 8, vy: -Math.random() * 7 - 2, age: 0, life: 650 + Math.random() * 300, text: emojis[Math.floor(Math.random() * emojis.length)], size: 22 + Math.random() * 18 });
+      }
+    }
+
+    function checkHit() {
+      if (!hand.visible || hitCooldown > 0) return;
+      const s = getSetting();
+      const speed = Math.hypot(hand.vx, hand.vy);
+      if (speed < 4) return;
+      for (const ball of balls) {
+        if (ball.hit) continue;
+        const bx = ball.hole.x;
+        const by = ball.hole.y - ball.size * 0.35;
+        const dist = Math.hypot(hand.x - bx, hand.y - by);
+        if (dist < s.hitRadius) {
+          ball.hit = true;
+          score++;
+          scoreEl.textContent = score;
+          hitCooldown = 220;
+          handCursor.classList.add('hit');
+          setTimeout(() => handCursor.classList.remove('hit'), 120);
+          playHitSound();
+          addParticles(bx, by - ball.size * 0.2);
+          break;
+        }
+      }
+    }
+
+    function update(dt) {
+      if (!gameRunning || gamePaused) return;
+      timerAcc += dt;
+      ballTimer += dt;
+      hitCooldown = Math.max(0, hitCooldown - dt);
+      if (timerAcc >= 1000) {
+        timerAcc -= 1000;
+        timeLeft--;
+        timeEl.textContent = timeLeft;
+        if (timeLeft <= 0) endGame();
+      }
+      const s = getSetting();
+      if (ballTimer >= s.spawnEvery) {
+        ballTimer = 0;
+        spawnBall();
+      }
+      for (const ball of balls) {
+        ball.age += dt;
+        ball.pop = Math.min(1, ball.age / 180);
+        if (ball.hit) ball.pop -= dt / 260;
+      }
+      balls = balls.filter(b => b.age < b.life && b.pop > -0.25 && !(b.hit && b.pop <= 0));
+      for (const p of particles) {
+        p.age += dt;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.24;
+      }
+      particles = particles.filter(p => p.age < p.life);
+      checkHit();
+    }
+
+    function drawBackground() {
+      ctx.clearRect(0, 0, W, H);
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, '#b9e9ff');
+      sky.addColorStop(0.35, '#d6f5ff');
+      sky.addColorStop(0.36, '#89d06d');
+      sky.addColorStop(1, '#57a944');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+      drawCloud(W * 0.12, H * 0.12, 1.0);
+      drawCloud(W * 0.68, H * 0.10, 1.2);
+      ctx.fillStyle = '#7ccf5d';
+      ctx.beginPath();
+      ctx.ellipse(W / 2, H * 0.98, W * 0.75, H * 0.26, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#6ac24f';
+      ctx.beginPath();
+      ctx.ellipse(W * 0.32, H * 0.92, W * 0.28, H * 0.13, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#92dd76';
+      ctx.beginPath();
+      ctx.ellipse(W * 0.70, H * 0.90, W * 0.30, H * 0.11, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawCloud(x, y, s) {
+      ctx.save();
+      ctx.globalAlpha = 0.65;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(x, y, 28*s, 0, Math.PI*2);
+      ctx.arc(x+34*s, y-12*s, 36*s, 0, Math.PI*2);
+      ctx.arc(x+72*s, y, 30*s, 0, Math.PI*2);
+      ctx.arc(x+36*s, y+16*s, 42*s, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawGolfHole(hole) {
+      ctx.save();
+      ctx.translate(hole.x, hole.y);
+      ctx.fillStyle = 'rgba(20,20,20,.28)';
+      ctx.beginPath();
+      ctx.ellipse(0, 18, 70, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1d1d1d';
+      ctx.beginPath();
+      ctx.ellipse(0, 10, 62, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.8)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(0, 10, 62, 18, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#d9d9d9';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(34, -42);
+      ctx.lineTo(34, 8);
+      ctx.stroke();
+      ctx.fillStyle = '#e53935';
+      ctx.beginPath();
+      ctx.moveTo(34, -42);
+      ctx.lineTo(66, -34);
+      ctx.lineTo(34, -24);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawGolfBall(ball) {
+      const h = ball.hole;
+      const s = ball.size;
+      const pop = Math.max(0, Math.min(1, ball.pop));
+      const y = h.y + 24 - pop * (s * 0.86);
+      const scaleY = ball.hit ? 0.78 : 1;
+      ctx.save();
+      ctx.translate(h.x, y);
+      ctx.scale(1, scaleY);
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.beginPath();
+      ctx.ellipse(0, s * 0.28, s * 0.34, s * 0.11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.36, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.18)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.36, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#d7d7d7';
+      for (let r = -2; r <= 2; r++) {
+        const count = 5 - Math.abs(r);
+        for (let c = 0; c < count; c++) {
+          const offsetX = (c - (count - 1) / 2) * (s * 0.12);
+          const offsetY = r * (s * 0.10);
+          ctx.beginPath();
+          ctx.arc(offsetX, offsetY, s * 0.018, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.95)';
+      ctx.beginPath();
+      ctx.arc(-s * 0.10, -s * 0.12, s * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      if (ball.hit) {
+        ctx.font = `${s * 0.52}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💥', 0, -s * 0.60);
+      }
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      for (const p of particles) {
+        const alpha = 1 - p.age / p.life;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.font = `${p.size}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.text, p.x, p.y);
+        ctx.restore();
+      }
+    }
+
+    function draw() {
+      drawBackground();
+      for (const hole of holes) drawGolfHole(hole);
+      for (const ball of balls) drawGolfBall(ball);
+      drawParticles();
+      if (!hand.visible && gameRunning) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.88)';
+        ctx.strokeStyle = 'rgba(20,80,20,.25)';
+        ctx.lineWidth = 4;
+        roundRect(W/2 - 270, H - 110, 540, 70, 22, true, true);
+        ctx.fillStyle = '#154d1e';
+        ctx.font = 'bold 28px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('ยกมือให้อยู่ในกล้อง', W/2, H - 66);
+        ctx.restore();
+      }
+    }
+
+    function roundRect(x, y, w, h, r, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    function loop(now) {
+      const dt = Math.min(40, now - lastTick || 16);
+      lastTick = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', startGame);
+    pauseBtn.addEventListener('click', pauseGame);
+    difficultyEl.addEventListener('change', () => { buildHoles(); balls = []; });
+    soundModeEl.addEventListener('change', () => { soundEnabled = soundModeEl.value === 'on'; });
+
+    resize();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
